@@ -1,0 +1,143 @@
+{
+  "version": "6-permission-mapping-20261030",
+  "tables": {
+    "dbo.Dms_WorkDepartment": {
+      "permissions_any": [
+        "Hrm.EmployeeProfile.View",
+        "Asm.Asset.View",
+        "Hrm.EmployeeProfile.ViewMine"
+      ],
+      "columns": [
+        "Id",
+        "TenantId",
+        "CreationTime",
+        "IsDeleted",
+        "DeletionTime",
+        "Code",
+        "DepartmentCode",
+        "DisplayName",
+        "Describe"
+      ],
+      "lookup_columns": [
+        "Code",
+        "DepartmentCode",
+        "DisplayName"
+      ],
+      "meaning": "Danh mục phòng ban. Không dùng phòng ban hiện tại để loại bỏ hồ sơ lịch sử khi câu hỏi không yêu cầu.",
+      "department_column": "Id",
+      "scope_permissions": {
+        "tenant": [
+          "Hrm.EmployeeProfile.View",
+          "Asm.Asset.View"
+        ],
+        "department": [
+          "Hrm.EmployeeProfile.ViewMine"
+        ]
+      }
+    },
+    "dbo.Dms_WorkPosition": {
+      "permissions_any": [
+        "Hrm.EmployeeProfile.View",
+        "Hrm.EmployeeProfile.ViewMine"
+      ],
+      "columns": [
+        "Id",
+        "TenantId",
+        "CreationTime",
+        "IsDeleted",
+        "DeletionTime",
+        "Code",
+        "Name"
+      ],
+      "lookup_columns": [
+        "Code",
+        "Name"
+      ],
+      "meaning": "Danh mục chức vụ."
+    },
+    "dbo.Hrm_EmployeeProfile": {
+      "permissions_any": [
+        "Hrm.EmployeeProfile.View",
+        "Hrm.EmployeeProfile.ViewMine"
+      ],
+      "columns": [
+        "Id",
+        "TenantId",
+        "CreationTime",
+        "IsDeleted",
+        "DeletionTime",
+        "WorkDepartmentId",
+        "WorkPositionId",
+        "HireDate",
+        "ResignationDate",
+        "EmployeeId",
+        "EmployeeCode",
+        "FullName"
+      ],
+      "meaning": "Hồ sơ nhân sự trong phạm vi quyền ERP; được đọc mã và họ tên trong danh sách cột cho phép, không cấp giấy tờ, liên hệ, lương. HireDate là ngày tuyển/vào làm, CreationTime chỉ là ngày tạo hồ sơ; không tự thay HireDate thiếu bằng CreationTime. Thống kê cuối kỳ cần xác nhận quy tắc HireDate và ResignationDate, nhất là trường hợp nghỉ đúng ngày chốt. Phòng ban và chức vụ hiện tại không phải snapshot lịch sử đầy đủ.",
+      "self_column": "EmployeeId",
+      "department_column": "WorkDepartmentId",
+      "scope_permissions": {
+        "tenant": [
+          "Hrm.EmployeeProfile.View"
+        ],
+        "self": [
+          "Hrm.EmployeeProfile.ViewMine"
+        ]
+      }
+    },
+    "dbo.Asm_Assets": {
+      "permissions_any": [
+        "Asm.Asset.View"
+      ],
+      "columns": [
+        "Id",
+        "TenantId",
+        "CreationTime",
+        "IsDeleted",
+        "DeletionTime",
+        "Code",
+        "Name",
+        "AssetCategoryId",
+        "Status",
+        "Quantity",
+        "WorkDepartmentId",
+        "LastModificationTime"
+      ],
+      "meaning": "Danh mục tài sản; COUNT đếm hồ sơ, Quantity là số lượng ghi trên hồ sơ, không phải số lượng cấp phát. Tổng số lượng cộng Quantity theo đúng nhóm, giữ Quantity=0; ý nghĩa NULL chưa được xác nhận, không tự coi là 1 hoặc âm thầm coi là 0. Status là mã enum chưa xác nhận; chưa xóa không đồng nghĩa đang sử dụng. Phòng ban và số lượng hiện tại không tái dựng được lịch sử chính xác.",
+      "department_column": "WorkDepartmentId",
+      "scope_permissions": {
+        "tenant": [
+          "Asm.Asset.View"
+        ]
+      }
+    },
+    "dbo.Asm_AssetCategories": {
+      "permissions_any": [
+        "Asm.Asset.View"
+      ],
+      "columns": [
+        "Id",
+        "TenantId",
+        "CreationTime",
+        "IsDeleted",
+        "DeletionTime",
+        "Code",
+        "Name"
+      ],
+      "lookup_columns": [
+        "Code",
+        "Name"
+      ],
+      "meaning": "Danh mục loại tài sản."
+    }
+  },
+  "users": {},
+  "admin_columns": {
+    "dbo.Hrm_EmployeeProfile": [
+      "Gender",
+      "DateOfBirth",
+      "EducationLevel"
+    ]
+  }
+}

@@ -1,0 +1,36 @@
+
+# Python & môi trường ảo
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# Biến môi trường & cấu hình bảo mật
+.env
+.env.*
+!.env.example
+
+# Editor & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Khoá PGP của kho ODBC Microsoft, không thuộc dự án
+microsoft.asc
+
+# Thực nghiệm / kết quả đo - giữ trên máy, không đưa lên nhánh
+text_to_sql_experiment/
+erp_database/*
+!erp_database/scripts/
+erp_database/secrets/
+backend/test_results/
+backend/tests/layout_experiment/
+backend/tests/fixtures/layout_pdf/
+.playwright-mcp/
+/artifacts/
+*.log
+
