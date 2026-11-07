@@ -1,0 +1,134 @@
+{
+  "preview": {
+    "file_name": "report.png",
+    "items": [
+      {
+        "room_code": "R01",
+        "chemical_code": "001",
+        "metric": "Quantity_mL",
+        "value": "1,545",
+        "unit": "L",
+        "measured_at": "2026-09-28T10:45:00Z"
+      },
+      {
+        "room_code": "R01",
+        "chemical_code": "002",
+        "metric": "Quantity_mL",
+        "value": "1,8",
+        "unit": "L",
+        "measured_at": "2026-09-28T10:45:00Z"
+      },
+      {
+        "room_code": "R02",
+        "chemical_code": "005",
+        "metric": "Quantity_mL",
+        "value": "0",
+        "unit": "mL",
+        "measured_at": "2026-09-28T10:45:00Z"
+      },
+      {
+        "room_code": "R01",
+        "chemical_code": "001",
+        "metric": "Quantity_mL",
+        "value": "1234",
+        "unit": "mL",
+        "measured_at": "2030-01-01T01:00:00Z"
+      }
+    ],
+    "report_date": "2026-09-29T01:00:00Z"
+  },
+  "results": [
+    {
+      "result_id": 1,
+      "analysis_run_id": 1,
+      "report_id": 1,
+      "report_row_number": 1,
+      "room_code": "R01",
+      "chemical_code": "001",
+      "metric": "Quantity_mL",
+      "status": "matched",
+      "report_measured_at": "2026-09-28T10:45:00+00:00",
+      "db_measured_at": "2026-09-28T10:45:00+00:00",
+      "report_value": 1545.0,
+      "db_value": 1545.0,
+      "report_unit": "mL",
+      "db_unit": "mL",
+      "abs_diff": 0.0,
+      "rel_diff_pct": 0.0,
+      "evidence": {
+        "match_mode": "exact_timestamp",
+        "db_record_id": 4,
+        "tolerance": "0.05"
+      }
+    },
+    {
+      "result_id": 2,
+      "analysis_run_id": 1,
+      "report_id": 1,
+      "report_row_number": 2,
+      "room_code": "R01",
+      "chemical_code": "002",
+      "metric": "Quantity_mL",
+      "status": "value_mismatch",
+      "report_measured_at": "2026-09-28T10:45:00+00:00",
+      "db_measured_at": "2026-09-28T10:45:00+00:00",
+      "report_value": 1800.0,
+      "db_value": 1795.0,
+      "report_unit": "mL",
+      "db_unit": "mL",
+      "abs_diff": 5.0,
+      "rel_diff_pct": 0.2786,
+      "evidence": {
+        "match_mode": "exact_timestamp",
+        "db_record_id": 5,
+        "tolerance": "0.05"
+      }
+    },
+    {
+      "result_id": 3,
+      "analysis_run_id": 1,
+      "report_id": 1,
+      "report_row_number": 3,
+      "room_code": "R02",
+      "chemical_code": "005",
+      "metric": "Quantity_mL",
+      "status": "value_mismatch",
+      "report_measured_at": "2026-09-28T10:45:00+00:00",
+      "db_measured_at": "2026-09-28T10:45:00+00:00",
+      "report_value": 0.0,
+      "db_value": 1990.0,
+      "report_unit": "mL",
+      "db_unit": "mL",
+      "abs_diff": -1990.0,
+      "rel_diff_pct": -100.0,
+      "evidence": {
+        "match_mode": "exact_timestamp",
+        "db_record_id": 6,
+        "tolerance": "0.05"
+      }
+    },
+    {
+      "result_id": 4,
+      "analysis_run_id": 1,
+      "report_id": 1,
+      "report_row_number": 4,
+      "room_code": "R01",
+      "chemical_code": "001",
+      "metric": "Quantity_mL",
+      "status": "out_of_data_range",
+      "report_measured_at": "2030-01-01T01:00:00+00:00",
+      "db_measured_at": "2026-09-28T10:45:00+00:00",
+      "report_value": 1234.0,
+      "db_value": null,
+      "report_unit": "mL",
+      "db_unit": "mL",
+      "abs_diff": null,
+      "rel_diff_pct": null,
+      "evidence": {
+        "reason": "Thời điểm 2030-01-01T01:00:00+00:00 nằm ngoài phạm vi dữ liệu gốc hiện có trong hệ thống (từ 2026-09-28T10:30:00+00:00 đến 2026-09-28T10:45:00+00:00). Cần import bổ sung dữ liệu đo gốc của ngày này hoặc kiểm tra lại thời điểm trên báo cáo.",
+        "latest_db_measured_at": "2026-09-28T10:45:00+00:00",
+        "latest_db_value": 1545.0
+      }
+    }
+  ]
+}

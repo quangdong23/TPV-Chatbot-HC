@@ -260,7 +260,7 @@ async def test_ten_file_kieu_email_van_giu_duoc_duoi(tmp_path, ocr_gia, kho_uplo
 
     res = await _call("POST", "/api/agent/upload",
                       files={"file": (ten_gui, path.read_bytes(), "application/pdf")},
-                      data={"muc_dich": "upload"})
+                      data={"kind": "upload", "ingest": "false"})
     assert res.status_code == 200, res.text
     file_id = res.json()["file_id"]
     assert file_id.endswith(".pdf"), file_id
@@ -432,3 +432,56 @@ def test_go_rao_markdown(vao, ra):
     from app.rag.ocr import go_rao_markdown
 
     assert go_rao_markdown(vao) == ra
+
+async def test_chemistry_profile_reaches_model_and_stream(monkeypatch, kho_upload):
+    from io import BytesIO
+    from PIL import Image
+    from app.core.config import get_settings
+    from app.rag.ocr import CHEMISTRY_PROMPT, OCR_PROMPT
+    from app.services import storage
+    monkeypatch.setattr(get_settings(), "ocr_enabled", True)
+    content = "C₂H₄O₂ · Fe³⁺\nA. CH₃COOH\nB. HCOOCH₃"
+    prompts = []
+    class Response:
+        def raise_for_status(self): pass
+        def json(self): return {"choices": [{"message": {"content": content}}]}
+    def post(url, **kwargs):
+        prompt = kwargs["json"]["messages"][0]["content"][0]["text"]
+        from app.documents.ocr_formatting import BOLD_PROMPT
+        if prompt.startswith(BOLD_PROMPT):
+            class FormatResponse(Response):
+                def json(self): return {"choices": [{"message": {"content": '{"bold": []}'}}]}
+            return FormatResponse()
+        prompts.append(prompt)
+        return Response()
+    monkeypatch.setattr("app.rag.ocr.httpx.post", post)
+    image = BytesIO()
+    Image.new("RGB", (100, 100), "white").save(image, format="PNG")
+    raw = image.getvalue()
+    response = await _call("POST", "/api/ocr/extract", files={"file": ("chem.png", raw)}, data={"loai_tai_lieu": "chemistry"})
+    assert response.status_code == 200, response.text
+    assert response.json()["markdown"] == content
+    assert response.json()["loai_tai_lieu"] == "chemistry"
+    assert prompts[-1] == CHEMISTRY_PROMPT
+    ref = storage.save_upload(raw, "chem.png", kind="upload")
+    response = await _call("POST", "/api/ocr/extract/stream", json={"file_id": ref.file_id, "loai_tai_lieu": "chemistry"})
+    assert "event: done" in response.text
+    assert '"loai_tai_lieu": "chemistry"' in response.text
+    assert prompts[-1] == CHEMISTRY_PROMPT
+    response = await _call("POST", "/api/ocr/extract", files={"file": ("chem.png", raw)})
+    assert response.status_code == 200, response.text
+    assert prompts[-1] == OCR_PROMPT
+
+async def test_ocr_page_limit_before_model(tmp_path, monkeypatch, kho_upload, ocr_gia):
+    from app.core.config import get_settings
+    monkeypatch.setattr(get_settings(), "ocr_max_pages", 1)
+    path = _pdf(tmp_path, ["", ""])
+    response = await _call("POST", "/api/ocr/extract", files={"file": ("large.pdf", path.read_bytes())})
+    assert response.status_code == 502
+    assert "error" in response.json()
+    assert response.json()["error"]["code"] == "INTERNAL_ERROR"
+    assert not ocr_gia.da_goi
+
+async def test_unknown_profile_is_rejected(kho_upload):
+    response = await _call("POST", "/api/ocr/extract/stream", json={"file_id": "unused.pdf", "loai_tai_lieu": "invalid"})
+    assert response.status_code == 422

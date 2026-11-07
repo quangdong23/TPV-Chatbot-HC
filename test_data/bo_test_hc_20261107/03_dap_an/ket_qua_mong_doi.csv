@@ -1,0 +1,10 @@
+﻿row_number,status,report_value_normalized,unit_normalized,db_value,difference,explanation
+1,matched,1500,mL,1500,0,Khớp hoàn toàn.
+2,matched,2000,mL,2000,0,"2 L = 2000 mL, khác cách ghi nhưng không sai."
+3,value_mismatch,700,mL,750,-50,Báo cáo ghi thiếu 50 mL.
+4,matched,0,mL,0,0,Số 0 hợp lệ; SQL cũng có số 0.
+5,value_mismatch,28,C,25,3,Nhiệt độ ghi cao hơn 3 độ C.
+6,value_mismatch,65,%,60,5,Độ ẩm ghi cao hơn 5 điểm phần trăm.
+7,value_mismatch,0,ppb,90,-90,TVOC ghi 0 nhưng nguồn là 90 ppb.
+8,out_of_data_range,1234,mL,,,Ngày đo nằm ngoài dữ liệu gốc; không được kết luận lệch 766 mL hoặc thay SQL bằng 0.
+9,timestamp_mismatch,1500,mL,1500,0,Số 1500 trùng ngày 07/11 lúc 08:00 nhưng báo cáo ghi ngày 08/11; cần xác minh thời điểm.

@@ -96,11 +96,11 @@ ensure_container() {
   local name=$1 port=$2 create=$3
   if container_running "$name"; then
     log "$name đang chạy"
+  elif port_busy "$port"; then
+    warn "$name: cổng $port đã có dịch vụ khác - giữ nguyên; kiểm tra dịch vụ ở bước health check"
   elif container_exists "$name"; then
     "${DOCKER[@]}" start "$name" >/dev/null
     log "$name: đã start lại container có sẵn"
-  elif port_busy "$port"; then
-    warn "$name chưa có container nhưng cổng $port đã có dịch vụ khác - giữ nguyên"
   else
     "$create"
     log "$name: đã tạo container mới"

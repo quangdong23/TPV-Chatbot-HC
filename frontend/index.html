@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>TPV Trợ lý — Multi-agent</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗂️</text></svg>" />
-<link rel="stylesheet" href="styles.css?v=20261104-report-reuse" />
+<link rel="stylesheet" href="styles.css?v=20261107-review-action-right" />
 </head>
 <body>
 <div class="app" id="app">
@@ -36,6 +36,12 @@
       <button class="nav-item is-active" data-view="chat">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-5A8 8 0 1 1 21 12Z"/></svg>
         <span>Agent tổng</span><em class="nav-hint">tự định tuyến</em>
+      </button>
+
+      <div class="nav-label">Nghiệp vụ Hóa chất</div>
+      <button class="nav-item" data-view="chemical-review">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        <span>Soát tài liệu HC</span><em class="nav-hint">SQL Server</em>
       </button>
 
       <div class="nav-label">Nghiệp vụ văn bản</div>
@@ -354,30 +360,37 @@
     <section class="view view-split" id="view-ocr">
       <div class="panel">
         <div class="panel-inner">
-          <h2 class="panel-title">OCR tài liệu</h2>
-          <p class="panel-sub">Đọc chữ trong ảnh trang bằng <b id="ocrModel">chính model đang chạy</b> — không nạp thêm mô hình nào lên card. Kết quả là Markdown: tiêu đề, danh sách và bảng biểu giữ nguyên cấu trúc, hiện ngay bên phải và tải về được.</p>
-
-          <div class="dropzone" id="ocrDrop">
-            <input type="file" id="ocrFile" accept=".pdf,.jpg,.jpeg,.png,.bmp,.tiff,.webp" hidden />
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m0 0L8 8m4-4 4 4"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
-            <b>Kéo thả hoặc bấm để chọn file</b>
-            <small>.pdf · ảnh chụp, ảnh scan</small>
+          <div><span class="pill accent">OCR tài liệu</span><h2 class="panel-title" style="margin-top:12px">Chuyển tài liệu thành văn bản</h2></div>
+          <p class="panel-sub">Đọc PDF, ảnh chụp và bản scan. Xem kết quả theo từng trang, sao chép hoặc tải về.</p>
+          <div class="ocr-input-section">
+            <h3 class="panel-title sm">1. Tài liệu nguồn</h3>
+            <div class="dropzone" id="ocrDrop" role="button" tabindex="0" aria-label="Chọn PDF hoặc ảnh để nhận dạng">
+              <input type="file" id="ocrFile" accept=".pdf,.jpg,.jpeg,.png,.bmp,.tiff,.webp" hidden />
+              <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m0 0L8 8m4-4 4 4"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+              <b>Kéo thả hoặc bấm để chọn file</b><small>PDF · JPG · PNG · BMP · TIFF · WebP</small>
+            </div>
+            <p class="panel-sub" id="ocrLimits">Tối đa 30 MB · 100 trang</p>
           </div>
-
-          <label class="field">
-            <span>Trang nào đi qua mô hình</span>
-            <select id="ocrCheDo">
-              <option value="auto">Chỉ trang scan — trang có sẵn chữ thì đọc thẳng</option>
-              <option value="tat_ca">Mọi trang — ép cả tài liệu qua mô hình</option>
-            </select>
-            <em>Trang xuất từ Word có sẵn lớp text: đọc thẳng vừa nhanh vừa đúng từng dấu, không việc gì phải nhờ mô hình. Chọn <b>mọi trang</b> khi lớp text có mà sai — PDF scan kèm OCR cũ là trường hợp hay gặp nhất.</em>
-          </label>
-
-          <button class="primary-btn" id="ocrRun" disabled>Đọc tài liệu</button>
-          <p class="mm-note">File chỉ được đọc, <b>không</b> nạp vào kho tri thức. Trang hiện dần theo tốc độ đọc của mô hình, không phải đợi xong cả tài liệu.</p>
+          <div class="ocr-input-section">
+            <h3 class="panel-title sm">2. Tùy chọn nhận dạng</h3>
+            <label class="field"><span>Loại tài liệu</span><select id="ocrProfile">
+              <option value="general">Văn bản thông thường / hành chính</option>
+              <option value="chemistry">Hóa học · công thức và phương trình</option>
+            </select><em id="ocrProfileHint">Giữ cấu trúc đoạn văn, tiêu đề và bảng biểu.</em></label>
+            <label class="field"><span>Phạm vi OCR</span><select id="ocrCheDo">
+              <option value="auto">Tự động — chỉ OCR trang scan</option>
+              <option value="tat_ca">OCR tất cả các trang</option>
+            </select><em>Chọn tất cả khi lớp chữ có sẵn bị sai hoặc mất chỉ số công thức.</em></label>
+          </div>
+          <div class="ocr-input-section">
+            <div class="ocr-run-actions"><button class="primary-btn" id="ocrRun" disabled>Đọc tài liệu</button><button class="ghost-btn" id="ocrStop" hidden>Dừng</button></div>
+            <p class="panel-sub" id="ocrState" role="status" aria-live="polite">Chọn tài liệu để bắt đầu.</p>
+          </div>
+          <details class="ocr-service"><summary>Thông tin bộ nhận dạng</summary><p class="panel-sub">Mô hình: <b id="ocrModel">Đang kiểm tra…</b></p><p class="panel-sub">TPV-OCR · chemistry-5</p></details>
+          <p class="mm-note">Kiểm tra kết quả, sau đó bấm “Nạp kho tri thức” để lưu trực tiếp nội dung đã nhận dạng.</p>
         </div>
       </div>
-      <div class="result" id="ocrResult"><div class="result-empty">Thả một tài liệu vào ô bên trái để bắt đầu.</div></div>
+      <div class="result" id="ocrResult"><div class="result-empty"><h3>Kết quả nhận dạng</h3><p>Nội dung xuất hiện dần theo từng trang.</p><p>Hỗ trợ văn bản, bảng biểu và công thức hóa học.</p></div></div>
     </section>
 
     <!-- ========== VIEW: CORPUS ========== -->
@@ -460,6 +473,89 @@
     <section class="view" id="view-tools">
       <div class="page" id="toolsPage"></div>
     </section>
+
+    <!-- ───────────────────── VIEW: CHEMICAL CHAT ───────────────────── -->
+    <section class="view" id="view-chemical-chat">
+      <div class="chem-container">
+        <header class="chem-header">
+          <div class="chem-title-wrap">
+            <h2>Hỏi đáp &amp; Giám sát Số liệu Hóa chất (Feature 1)</h2>
+            <p class="muted sm">Tra cứu lượng hóa chất, chỉ số phòng (SQL Server) và quy định an toàn SDS (Qdrant). Phân tách nguồn dữ liệu rõ ràng.</p>
+          </div>
+          <div class="chem-filters-bar">
+            <label>Phòng: <select id="chemChatRoom"><option value="">-- Mọi phòng --</option></select></label>
+            <label>Hóa chất: <select id="chemChatChem"><option value="">-- Mọi hóa chất --</option></select></label>
+          </div>
+        </header>
+
+        <div class="chem-chat-box">
+          <div class="chem-chat-messages" id="chemChatMessages">
+            <div class="chem-chat-msg msg-bot">
+              <div class="chem-sources-bar"><span class="chem-badge badge-sql">Hệ thống sẵn sàng</span></div>
+              <div class="chem-bot-content">
+                Xin chào! Tôi là trợ lý giám sát hóa chất. Bạn có thể hỏi về:<br>
+                • <i>"Axit Sunfuric 001 tại phòng R01 hiện có lượng bao nhiêu và cách bảo quản?"</i><br>
+                • <i>"Chỉ số nhiệt độ, độ ẩm và TVOC tại phòng R02 ngày 2026-09-28 như thế nào?"</i><br>
+                • <i>"Hiện có những phát hiện bất thường nào về số lượng hóa chất không?"</i>
+              </div>
+            </div>
+          </div>
+          <div class="chem-chat-input-row">
+            <textarea id="chemChatInput" placeholder="Nhập câu hỏi tra cứu hóa chất hoặc quy định an toàn…" rows="2"></textarea>
+            <button class="btn btn-primary" id="chemChatSendBtn">Gửi câu hỏi</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ───────────────────── VIEW: CHEMICAL REVIEW ───────────────────── -->
+    <section class="view view-split" id="view-chemical-review">
+      <div class="panel">
+        <div class="panel-inner">
+          <h2 class="panel-title">Soát tài liệu HC</h2>
+          <p class="panel-sub">Đọc báo cáo hóa chất, kiểm tra số liệu trích xuất rồi đối chiếu với SQL Server. Kết quả chỉ rõ giá trị hai bên và lý do sai lệch.</p>
+
+          <label class="field"><span>Ngày lập báo cáo <em>(không bắt buộc)</em></span>
+            <input type="datetime-local" id="chemRevDate" />
+            <em>Để trống để dùng ngày đọc được từ tài liệu.</em>
+          </label>
+
+          <div class="dropzone" id="chemDropzone" role="button" tabindex="0" aria-label="Chọn báo cáo cần đối soát">
+            <div class="chemical-drop-prompt" id="dropzonePrompt">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m0 0L8 8m4-4 4 4"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+              <b>Kéo thả hoặc bấm để chọn file</b>
+              <small>PDF · DOCX · JPG · JPEG · PNG<br>TXT · MD · XLSX · CSV · JSON</small>
+            </div>
+            <div id="chemSelectedFile" class="chemical-file-selection" style="display:none;">
+              <span id="chemSelectedFileName"></span>
+              <button type="button" class="icon-btn" id="chemClearFileBtn" aria-label="Bỏ chọn file" title="Bỏ chọn file">&times;</button>
+            </div>
+            <input type="file" id="chemRevFile" accept=".txt,.xlsx,.csv,.json,.pdf,.docx,.jpg,.jpeg,.png,.md" hidden />
+          </div>
+
+          <div class="field">
+            <div class="chemical-field-label"><label for="chemRevText">Hoặc dán nội dung báo cáo</label><button type="button" class="ghost-btn sm" id="chemClearTextBtn">Xóa</button></div>
+            <textarea id="chemRevText" rows="7" placeholder="Dán nội dung báo cáo hoặc danh sách JSON…"></textarea>
+          </div>
+          <button type="button" class="primary-btn" id="chemExtractAiBtn"><span id="chemExtractAiBtnLabel">Đọc số liệu</span></button>
+          <p class="panel-sub">Kiểm tra và sửa số liệu trong bảng kết quả, sau đó bấm Đối soát SQL Server.</p>
+        </div>
+      </div>
+
+      <div class="result">
+        <div id="chemExtractedPreview" class="card chemical-review-preview" style="display:none;">
+          <div class="card-head chemical-review-head">
+            <h3>Kiểm tra số liệu trích xuất</h3>
+            <button type="button" class="primary-btn" id="chemRevSubmitBtn" disabled>Đối soát SQL Server</button>
+          </div>
+          <p id="chemExtractedCount" class="panel-sub"></p>
+          <div id="chemExtractedTable" class="table-scroll" tabindex="0" role="region" aria-label="Bảng số liệu trích xuất, cuộn dọc và ngang để xem đầy đủ"></div>
+          <p class="panel-sub">Thời điểm đo: ghi ngày giờ kèm múi giờ, ví dụ 2026-11-07T08:00:00+07:00; để trống nếu dùng số chốt theo ngày báo cáo.</p>
+        </div>
+        <div id="chemRevResult" aria-live="polite"><div class="result-empty">Kết quả đối soát sẽ hiện ở đây.</div></div>
+      </div>
+    </section>
+
   </main>
 </div>
 
@@ -503,9 +599,10 @@
 <div class="popover" id="popover" hidden></div>
 
 <script src="js/markdown.js?v=20260920l"></script>
-<script src="js/api.js?v=20261104-report-reuse"></script>
+<script src="js/api.js?v=20261107-no-default-credentials"></script>
 <script src="js/report_templates.js?v=20261104-report-reuse"></script>
 <script src="js/tasks.js?v=20261028"></script>
-<script src="js/app.js?v=20261104-report-reuse"></script>
+<script src="js/chemicals.js?v=20261107-review-style"></script>
+<script src="js/app.js?v=20261107-review-style"></script>
 </body>
 </html>

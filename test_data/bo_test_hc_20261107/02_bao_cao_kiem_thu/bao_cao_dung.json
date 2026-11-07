@@ -1,0 +1,87 @@
+{
+  "file_name": "bao_cao_dung.json",
+  "report_date": "2026-11-08T09:30:00+07:00",
+  "items": [
+    {
+      "row_number": 1,
+      "room_code": "R01",
+      "chemical_code": "001",
+      "measured_at": "2026-11-07T08:00:00+07:00",
+      "metric": "Quantity_mL",
+      "value": 1500,
+      "unit": "mL"
+    },
+    {
+      "row_number": 2,
+      "room_code": "R01",
+      "chemical_code": "002",
+      "measured_at": "2026-11-07T08:00:00+07:00",
+      "metric": "Quantity_mL",
+      "value": 2,
+      "unit": "L"
+    },
+    {
+      "row_number": 3,
+      "room_code": "R02",
+      "chemical_code": "003",
+      "measured_at": "2026-11-07T08:00:00+07:00",
+      "metric": "Quantity_mL",
+      "value": 750,
+      "unit": "mL"
+    },
+    {
+      "row_number": 4,
+      "room_code": "R02",
+      "chemical_code": "004",
+      "measured_at": "2026-11-07T08:00:00+07:00",
+      "metric": "Quantity_mL",
+      "value": 0,
+      "unit": "mL"
+    },
+    {
+      "row_number": 5,
+      "room_code": "R01",
+      "chemical_code": null,
+      "measured_at": "2026-11-07T08:00:00+07:00",
+      "metric": "Temperature_C",
+      "value": 25,
+      "unit": "C"
+    },
+    {
+      "row_number": 6,
+      "room_code": "R02",
+      "chemical_code": null,
+      "measured_at": "2026-11-07T08:00:00+07:00",
+      "metric": "Humidity_pct",
+      "value": 60,
+      "unit": "%"
+    },
+    {
+      "row_number": 7,
+      "room_code": "R02",
+      "chemical_code": null,
+      "measured_at": "2026-11-07T08:00:00+07:00",
+      "metric": "TVOC_ppb",
+      "value": 90,
+      "unit": "ppb"
+    },
+    {
+      "row_number": 8,
+      "room_code": "R01",
+      "chemical_code": "002",
+      "measured_at": "2026-11-07T09:00:00+07:00",
+      "metric": "Quantity_mL",
+      "value": 2100,
+      "unit": "mL"
+    },
+    {
+      "row_number": 9,
+      "room_code": "R01",
+      "chemical_code": "001",
+      "measured_at": "2026-11-07T09:00:00+07:00",
+      "metric": "Quantity_mL",
+      "value": 1600,
+      "unit": "mL"
+    }
+  ]
+}

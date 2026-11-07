@@ -1,0 +1,11 @@
+﻿Ngày lập báo cáo: 2026-11-08T09:30:00+07:00
+row_number,room_code,chemical_code,measured_at,metric,value,unit
+1,R01,001,2026-11-07T08:00:00+07:00,Quantity_mL,1500,mL
+2,R01,002,2026-11-07T08:00:00+07:00,Quantity_mL,2,L
+3,R02,003,2026-11-07T08:00:00+07:00,Quantity_mL,700,mL
+4,R02,004,2026-11-07T08:00:00+07:00,Quantity_mL,0,mL
+5,R01,,2026-11-07T08:00:00+07:00,Temperature_C,28,C
+6,R02,,2026-11-07T08:00:00+07:00,Humidity_pct,65,%
+7,R02,,2026-11-07T08:00:00+07:00,TVOC_ppb,0,ppb
+8,R01,002,2026-11-08T08:00:00+07:00,Quantity_mL,1234,mL
+9,R01,001,2026-11-08T08:00:00+07:00,Quantity_mL,1500,mL

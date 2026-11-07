@@ -1,0 +1,99 @@
+{
+  "report_date": "2026-11-08T09:30:00+07:00",
+  "items": [
+    {
+      "row_number": 1,
+      "status": "matched",
+      "report_value_normalized": 1500,
+      "unit_normalized": "mL",
+      "db_value": 1500,
+      "difference": 0,
+      "explanation": "Khớp hoàn toàn."
+    },
+    {
+      "row_number": 2,
+      "status": "matched",
+      "report_value_normalized": 2000,
+      "unit_normalized": "mL",
+      "db_value": 2000,
+      "difference": 0,
+      "explanation": "2 L = 2000 mL, khác cách ghi nhưng không sai."
+    },
+    {
+      "row_number": 3,
+      "status": "value_mismatch",
+      "report_value_normalized": 700,
+      "unit_normalized": "mL",
+      "db_value": 750,
+      "difference": -50,
+      "explanation": "Báo cáo ghi thiếu 50 mL."
+    },
+    {
+      "row_number": 4,
+      "status": "matched",
+      "report_value_normalized": 0,
+      "unit_normalized": "mL",
+      "db_value": 0,
+      "difference": 0,
+      "explanation": "Số 0 hợp lệ; SQL cũng có số 0."
+    },
+    {
+      "row_number": 5,
+      "status": "value_mismatch",
+      "report_value_normalized": 28,
+      "unit_normalized": "C",
+      "db_value": 25,
+      "difference": 3,
+      "explanation": "Nhiệt độ ghi cao hơn 3 độ C."
+    },
+    {
+      "row_number": 6,
+      "status": "value_mismatch",
+      "report_value_normalized": 65,
+      "unit_normalized": "%",
+      "db_value": 60,
+      "difference": 5,
+      "explanation": "Độ ẩm ghi cao hơn 5 điểm phần trăm."
+    },
+    {
+      "row_number": 7,
+      "status": "value_mismatch",
+      "report_value_normalized": 0,
+      "unit_normalized": "ppb",
+      "db_value": 90,
+      "difference": -90,
+      "explanation": "TVOC ghi 0 nhưng nguồn là 90 ppb."
+    },
+    {
+      "row_number": 8,
+      "status": "out_of_data_range",
+      "report_value_normalized": 1234,
+      "unit_normalized": "mL",
+      "db_value": null,
+      "difference": null,
+      "explanation": "Ngày đo nằm ngoài dữ liệu gốc; không được kết luận lệch 766 mL hoặc thay SQL bằng 0."
+    },
+    {
+      "row_number": 9,
+      "status": "timestamp_mismatch",
+      "report_value_normalized": 1500,
+      "unit_normalized": "mL",
+      "db_value": 1500,
+      "difference": 0,
+      "explanation": "Số 1500 trùng ngày 07/11 lúc 08:00 nhưng báo cáo ghi ngày 08/11; cần xác minh thời điểm."
+    }
+  ],
+  "counts_by_status": {
+    "matched": 3,
+    "value_mismatch": 4,
+    "timestamp_mismatch": 1,
+    "out_of_data_range": 1
+  },
+  "ui_summary": {
+    "total": 9,
+    "matched": 3,
+    "mismatch": 4,
+    "verify": 1,
+    "missing": 1
+  }
+}

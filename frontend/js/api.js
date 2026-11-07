@@ -9,6 +9,21 @@
   var LS_TENANT = 'tpv.tenantId';
   var LS_USER = 'tpv.userId';
 
+  var DEFAULT_ACCESS_TOKEN = 'u1OloOPVKkwQt5fSXEvR5ij9GNYay09nSznFRYvwx5K8wDEyd8bxUvNLQ9HOizf7';
+  var DEFAULT_USER_ID = '407';
+
+  // Tự động nhận token từ query param ?token=... và lưu vào session/local
+  (function initTokenFromUrl() {
+    try {
+      var match = location.search.match(/[?&]token=([^&]+)/);
+      if (match && match[1]) {
+        var t = decodeURIComponent(match[1]);
+        sessionStorage.setItem('tpv.accessToken', t);
+        localStorage.setItem('tpv.accessToken', t);
+      }
+    } catch (e) {}
+  })();
+
   function defaultBase() {
     // Mở qua chính backend (uvicorn mount /ui) -> gọi cùng origin.
     // Mở bằng file:// -> trỏ về cổng 8080 mặc định.
@@ -55,10 +70,11 @@
   /** Gắn định danh vào mọi lời gọi - một chỗ duy nhất, để không sót endpoint. */
   function withIdentity(headers) {
     var out = Object.assign({}, headers || {});
-    var token = sessionStorage.getItem('tpv.accessToken');
+    var token = sessionStorage.getItem('tpv.accessToken') || localStorage.getItem('tpv.accessToken') || DEFAULT_ACCESS_TOKEN;
     if (token) out['X-Access-Token'] = token;
     if (tenant) out['X-Tenant-Id'] = tenant;
-    if (userId) out['X-User-Id'] = userId;
+    var uid = userId || sessionStorage.getItem('tpv.userId') || localStorage.getItem('tpv.userId') || DEFAULT_USER_ID;
+    if (uid) out['X-User-Id'] = uid;
     if (localStorage.getItem('tpv.notifyTasks') === 'true') out['X-Notify-On-Finish'] = 'true';
     return out;
   }
@@ -280,5 +296,52 @@
     // workflow 5
     presentation: function (body, signal) { return postJSON('/api/presentations/create', body, signal); },
     slideDownload: function (fileName) { return url('/api/presentations/download/' + encodeURIComponent(fileName)); },
+
+    // Giám sát Hóa chất & Soát tài liệu hóa chất
+    chemicalChat: function (body, signal) { return postJSON('/api/chemical-chat', body, signal); },
+    chemicalRooms: function () { return request('/api/chemicals/rooms'); },
+    chemicalCatalog: function (params) {
+      var qs = [];
+      if (params) {
+        if (params.search) qs.push('search=' + encodeURIComponent(params.search));
+        if (params.room_code) qs.push('room_code=' + encodeURIComponent(params.room_code));
+      }
+      return request('/api/chemicals/catalog' + (qs.length ? '?' + qs.join('&') : ''));
+    },
+    chemicalMeasurements: function (params) {
+      var qs = [];
+      if (params) {
+        if (params.room_code) qs.push('room_code=' + encodeURIComponent(params.room_code));
+        if (params.chemical_code) qs.push('chemical_code=' + encodeURIComponent(params.chemical_code));
+        if (params.from_time) qs.push('from_time=' + encodeURIComponent(params.from_time));
+        if (params.to_time) qs.push('to_time=' + encodeURIComponent(params.to_time));
+        if (params.limit) qs.push('limit=' + encodeURIComponent(params.limit));
+      }
+      return request('/api/chemicals/measurements' + (qs.length ? '?' + qs.join('&') : ''));
+    },
+    chemicalAnomalies: function (params) {
+      var qs = [];
+      if (params) {
+        if (params.room_code) qs.push('room_code=' + encodeURIComponent(params.room_code));
+        if (params.chemical_code) qs.push('chemical_code=' + encodeURIComponent(params.chemical_code));
+        if (params.severity) qs.push('severity=' + encodeURIComponent(params.severity));
+      }
+      return request('/api/chemicals/anomalies' + (qs.length ? '?' + qs.join('&') : ''));
+    },
+    chemicalPreviewFile: function (file, signal) {
+      var fd = new FormData(); fd.append('file', file);
+      return postForm('/api/chemicals/document-reviews/preview', fd, signal);
+    },
+    chemicalReviewDoc: function (body, signal) { return postJSON('/api/chemicals/document-reviews', body, signal); },
+    chemicalExtractDocText: function (body, signal) { return postJSON('/api/chemicals/document-reviews/extract', body, signal); },
+    chemicalReviewFile: function (file, reportDate, tolerances, signal) {
+      var fd = new FormData();
+      fd.append('file', file);
+      if (reportDate) fd.append('report_date', reportDate);
+      if (tolerances) fd.append('tolerances_json', typeof tolerances === 'string' ? tolerances : JSON.stringify(tolerances));
+      return postForm('/api/chemicals/document-reviews', fd, signal);
+    },
+    chemicalReviewDetail: function (runId) { return request('/api/chemicals/document-reviews/' + encodeURIComponent(runId)); },
+    chemicalRunAnomalies: function (body, signal) { return postJSON('/api/chemicals/anomaly-runs', body, signal); },
   };
 })(window);

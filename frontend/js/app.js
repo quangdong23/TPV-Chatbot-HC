@@ -118,6 +118,8 @@
 
   var VIEWS = {
     chat: ['Agent tổng', 'Một câu yêu cầu — hệ thống tự chọn workflow, kể cả hỏi đáp tài liệu'],
+    'chemical-chat': ['Giám sát Hóa chất', 'Feature 1 · Chatbot tra cứu số liệu thực đo SQL Server và quy định an toàn SDS Qdrant'],
+    'chemical-review': ['Soát tài liệu HC', 'Kiểm tra số liệu báo cáo và đối chiếu với SQL Server'],
     review: ['Soát tài liệu', 'Workflow 2 · rule engine cấu trúc + soát chữ nghĩa + phân rã nhiệm vụ'],
     draft: ['Soạn báo cáo', 'Workflow 3 · đọc một tài liệu tải lên, kiểm chứng từng con số trước khi xuất file'],
     aggregate: ['Tổng hợp báo cáo', 'Workflow 4 · nhiều đơn vị, biểu đồ do code vẽ, đối chiếu file đã gửi'],
@@ -169,6 +171,9 @@
     if (name === 'corpus') loadStats();
     if (name === 'review' && !ruleSetsLoaded) loadRuleSets();
     if (name === 'ocr') ocrLoadStatus();
+    if (name === 'chemical-chat' || name === 'chemical-review') {
+      if (window.tpvChemicals) window.tpvChemicals.loadInitialData();
+    }
   }
   $$('.nav-item').forEach(function (b) {
     b.addEventListener('click', function () { showView(b.dataset.view); });
@@ -214,26 +219,156 @@
     return wrap;
   }
 
+  function renderItemsTable(items, sourceTable) {
+    if (!items || !items.length) return '';
+    var cols = Object.keys(items[0]);
+    var headerHtml = '<tr>' + cols.map(function (c) { return '<th>' + esc(c) + '</th>'; }).join('') + '</tr>';
+    var rowsHtml = items.map(function (row) {
+      return '<tr>' + cols.map(function (c) {
+        var v = row[c];
+        if (v == null) return '<td class="muted">NULL</td>';
+        if (typeof v === 'object') return '<td>' + esc(JSON.stringify(v)) + '</td>';
+        return '<td>' + esc(String(v)) + '</td>';
+      }).join('') + '</tr>';
+    }).join('');
+    var badge = sourceTable ? '<div style="margin-bottom:6px"><span class="badge" style="background:#0284c7;color:#fff;font-size:11px;padding:2px 8px;border-radius:4px">Bảng SQL: ' + esc(sourceTable) + '</span></div>' : '';
+    return '<div class="sql-table-container" style="margin-top:8px;overflow-x:auto;">' + badge +
+      '<table class="chem-table" style="width:100%;border-collapse:collapse;font-size:12px;background:var(--surface,#fff);border:1px solid var(--border,#ddd);">' +
+      '<thead style="background:var(--surface-2,#f1f5f9);">' + headerHtml + '</thead>' +
+      '<tbody>' + rowsHtml + '</tbody></table></div>';
+  }
+
+  function renderDocumentHits(hits, query) {
+    if (!hits || !hits.length) return '';
+    var hitsHtml = hits.map(function (hit, idx) {
+      var docTitle = hit.doc_title || hit.source || hit.doc_id || ('Tài liệu ' + (idx + 1));
+      var sectionTitle = hit.section ? esc(hit.section) : '';
+      var sourceFile = (hit.source && hit.source !== hit.doc_title) ? esc(hit.source) : '';
+
+      var scoreBadge = '';
+      if (hit.score != null) {
+        var scoreVal = Number(hit.score);
+        if (hit.matched_by === 'keyword' || scoreVal < 0.1) {
+          scoreBadge = '<span class="pill" style="background:#e0f2fe;color:#0369a1;font-size:11px;font-weight:600;padding:2px 7px;border-radius:4px;margin-left:auto;">Khớp từ khóa chính xác</span>';
+        } else {
+          var scoreText = scoreVal <= 1 ? (scoreVal * 100).toFixed(0) + '%' : scoreVal.toFixed(2);
+          var badgeBg = scoreVal >= 0.6 ? '#dcfce7;color:#15803d' : '#fef3c7;color:#92400e';
+          scoreBadge = '<span class="pill" style="background:' + badgeBg + ';font-size:11px;font-weight:600;padding:2px 7px;border-radius:4px;margin-left:auto;">Độ khớp ngữ nghĩa: ' + esc(scoreText) + '</span>';
+        }
+      }
+
+      var pageBadge = hit.page != null ? '<span class="pill" style="background:#f1f5f9;color:#475569;font-size:11px;padding:2px 6px;border-radius:4px;">Trang ' + esc(String(hit.page)) + '</span>' : '';
+
+      var renderedText = '';
+      if (hit.text) {
+        if (window.MD && typeof window.MD.render === 'function') {
+          renderedText = window.MD.render(hit.text.trim(), { citations: false });
+        } else {
+          renderedText = esc(hit.text.trim());
+        }
+      }
+
+      return '<div class="doc-hit-card">' +
+        '<div class="doc-hit-header">' +
+          '<span class="doc-hit-title">' +
+            '📄 ' + esc(docTitle) +
+          '</span>' +
+          (sourceFile ? '<span style="color:var(--muted);font-size:11px;">(' + sourceFile + ')</span>' : '') +
+          (sectionTitle ? '<span class="pill" style="background:#e0e7ff;color:#3730a3;font-size:11px;padding:2px 8px;border-radius:4px;font-weight:500;">Mục: ' + sectionTitle + '</span>' : '') +
+          pageBadge +
+          scoreBadge +
+        '</div>' +
+        '<div class="doc-hit-body prose">' +
+          renderedText +
+        '</div>' +
+      '</div>';
+    }).join('');
+
+    return '<div class="doc-hits-container">' +
+      '<div style="font-size:11.5px;color:var(--muted);margin-bottom:2px;font-weight:550;display:flex;align-items:center;gap:6px;">' +
+        '<span>Trích đoạn văn bản từ Qdrant (' + hits.length + ' đoạn):</span>' +
+      '</div>' +
+      hitsHtml +
+    '</div>';
+  }
+
+  function renderDocumentText(doc) {
+    var meta = doc.metadata || {};
+    var docName = meta.doc_title || meta.ten_van_ban || doc.document_id || 'Tài liệu';
+    var textContent = (doc.text || doc.snippet || '').trim();
+    var renderedText = window.MD && typeof window.MD.render === 'function' ? window.MD.render(textContent, { citations: false }) : esc(textContent);
+    return '<div class="doc-hit-card" style="margin-top:8px;">' +
+      '<div class="doc-hit-header">' +
+        '<span class="doc-hit-title">📄 ' + esc(docName) + '</span>' +
+      '</div>' +
+      '<div class="doc-hit-body prose">' +
+        renderedText +
+      '</div>' +
+    '</div>';
+  }
+
   function sourceHTML(item, idx) {
     var title = item.doc_title || item.label || item.doc_id || ('Nguồn ' + idx);
     var meta = [];
-    if (item.kind) meta.push(esc(item.kind));
+    if (item.kind && item.kind !== 'cong_cu') meta.push(esc(item.kind));
     if (item.section) meta.push(esc(item.section));
     if (item.source) meta.push(esc(item.source));
     if (item.page != null) meta.push('trang ' + item.page);
-    if (item.doc_id && item.doc_title) meta.push(esc(item.doc_id));
+    if (item.doc_id && item.doc_title && item.doc_id !== item.doc_title) meta.push(esc(item.doc_id));
     if (item.score != null) meta.push('score ' + Number(item.score).toFixed(3));
     if (item.locator) {
-      Object.keys(item.locator).slice(0, 3).forEach(function (k) {
-        meta.push(esc(k) + ': ' + esc(String(item.locator[k])));
+      if (item.locator.step != null) meta.push('Bước ' + item.locator.step);
+      Object.keys(item.locator).slice(0, 5).forEach(function (k) {
+        if (k !== 'data' && k !== 'arguments' && k !== 'tool' && k !== 'step' && k !== 'ok' && item.locator[k] != null && typeof item.locator[k] !== 'object') {
+          meta.push(esc(k) + ': ' + esc(String(item.locator[k])));
+        }
       });
     }
+
+    var contentHtml = '';
+    // Thử trích xuất mảng items hoặc hits từ payload data hoặc từ snippet JSON
+    var parsedData = null;
+    if (item.locator && item.locator.data) {
+      parsedData = item.locator.data;
+    } else if (item.snippet && (item.snippet.charAt(0) === '{' || item.snippet.charAt(0) === '[')) {
+      try { parsedData = JSON.parse(item.snippet); } catch (e) {}
+    }
+
+    if (parsedData && typeof parsedData === 'object') {
+      var hits = parsedData.hits || parsedData.chunks || parsedData.documents || (parsedData.data && (parsedData.data.hits || parsedData.data.chunks));
+      var items = parsedData.items || parsedData.findings || (Array.isArray(parsedData) ? parsedData : null);
+
+      if (hits && Array.isArray(hits) && hits.length > 0) {
+        contentHtml = renderDocumentHits(hits, parsedData.query);
+      } else if (items && Array.isArray(items) && items.length > 0 && typeof items[0] === 'object') {
+        contentHtml = renderItemsTable(items, parsedData.source_table);
+      } else if (parsedData.text && typeof parsedData.text === 'string') {
+        contentHtml = renderDocumentText(parsedData);
+      }
+    }
+
+    if (!contentHtml && item.snippet) {
+      var isJson = item.snippet.charAt(0) === '{' || item.snippet.charAt(0) === '[';
+      if (isJson) {
+        try {
+          var testJson = JSON.parse(item.snippet);
+          if (testJson && (testJson.empty || testJson.count === 0)) {
+            contentHtml = '<div class="source-snip muted" style="font-style:italic;">Không tìm thấy dữ liệu phù hợp trong tài liệu/kho dữ liệu.</div>';
+          }
+        } catch (e) {}
+      }
+      if (!contentHtml) {
+        var textBody = window.MD && typeof window.MD.render === 'function' ? window.MD.render(item.snippet, { citations: false }) : esc(item.snippet);
+        contentHtml = '<div class="source-snip prose" style="white-space:pre-wrap;font-family:inherit;line-height:1.6;border-left:3px solid #cbd5e1;padding-left:10px;margin-top:6px;">' + textBody + '</div>';
+      }
+    }
+
     return '<div class="source" data-src="' + (item.id != null ? item.id : idx) + '">' +
       '<span class="source-idx">' + (item.id != null ? item.id : idx) + '</span>' +
       '<div class="source-body">' +
       '<div class="source-title">' + esc(title) + '</div>' +
       (meta.length ? '<div class="source-meta">' + meta.map(function (m) { return '<span>' + m + '</span>'; }).join('') + '</div>' : '') +
-      (item.snippet ? '<div class="source-snip">' + esc(item.snippet) + '</div>' : '') +
+      contentHtml +
       '</div></div>';
   }
 
@@ -769,14 +904,6 @@
     var hasExtra = false;
     [citeBlock, refBlock].forEach(function (b) { if (b) { wrapExtras.appendChild(b); hasExtra = true; } });
 
-    if (data.result && Object.keys(data.result).length) {
-      wrapExtras.appendChild(block('Kết quả thô của workflow', null, '<pre class="json">' + prettyJSON(data.result) + '</pre>', false));
-      hasExtra = true;
-    }
-    if (data.trace && Object.keys(data.trace).length) {
-      wrapExtras.appendChild(block('Trace pipeline', null, '<pre class="json">' + prettyJSON(data.trace) + '</pre>', false));
-      hasExtra = true;
-    }
     if (hasExtra) shell.extra.appendChild(wrapExtras);
 
     addCopyAction(shell, function () { return data.answer || ''; });
@@ -3019,7 +3146,7 @@
   });
 
   /* ═══════════════════════ VIEW: OCR TÀI LIỆU ════════════════════════
-   * Ảnh trang -> Markdown, đọc bằng chính model đang phục vụ cả hệ thống.
+   * Ảnh trang -> Markdown, dùng bộ xử lý TPV-OCR và model được cấu hình.
    *
    * Màn này nhận trang qua SSE chứ không đợi một phản hồi duy nhất: tài
    * liệu 30 trang scan mất vài phút, và đường công khai qua Cloudflare cắt
@@ -3038,6 +3165,9 @@
     tho: false,     // đang xem Markdown thô thay vì bản dựng
     ctrl: null,
     daNapStatus: false,
+    busy: false,
+    profile: 'general',
+    maxUploadMb: 30,
   };
 
   /** Cấu hình OCR: chủ yếu để nói rõ MODEL NÀO đang đọc, và báo sớm nếu tắt. */
@@ -3047,12 +3177,10 @@
     try {
       var st = await API.ocrStatus();
       $('#ocrModel').textContent = st.model || 'model đang chạy';
+      ocr.maxUploadMb = st.max_upload_mb || 30;
+      $('#ocrLimits').textContent = 'Tối đa ' + ocr.maxUploadMb + ' MB · ' + (st.max_pages || 100) + ' trang';
       if (!st.enabled) {
-        $('#ocrRun').disabled = true;
-        $('#ocrResult').innerHTML = '<div class="card" style="border-color:var(--warn)">' +
-          '<div class="card-head"><h3>OCR đang tắt</h3><span class="pill warn">không chạy được</span></div>' +
-          '<div class="muted sm">Backend đang đặt <code>OCR_ENABLED=false</code>. Bật lại trong ' +
-          '<code>backend/.env</code> rồi khởi động lại uvicorn.</div></div>';
+        $('#ocrState').textContent = 'Mô hình OCR chưa bật. PDF có sẵn lớp chữ vẫn đọc được.';
       }
     } catch (e) {
       // Không chặn màn hình vì một dòng chú thích: nút vẫn bấm được, lỗi thật
@@ -3139,7 +3267,7 @@
     var card = el('div', { class: 'card ocr-head' });
     card.appendChild(el('div', { class: 'card-head' },
       '<h3>' + esc(start.file_name) + '</h3>' +
-      '<span class="pill">' + esc(start.model) + '</span>'));
+      '<span class="pill accent">' + (ocr.profile === 'chemistry' ? 'Hóa học' : 'Văn bản') + '</span>'));
 
     var stats = [
       ['Số trang', fmtNum(start.so_trang)],
@@ -3189,6 +3317,47 @@
       setTimeout(function () { URL.revokeObjectURL(href); }, 1000);
     });
     tools.appendChild(tai);
+    var txt = el('button', { class: 'ghost-btn sm' }, 'Tải .txt');
+    txt.addEventListener('click', function () {
+      var href = URL.createObjectURL(new Blob([ocrMarkdown()], { type: 'text/plain;charset=utf-8' }));
+      var link = el('a', { href: href, download: start.file_name.replace(/\.[^.]+$/, '') + '.txt' });
+      document.body.appendChild(link); link.click(); link.remove();
+      setTimeout(function () { URL.revokeObjectURL(href); }, 1000);
+    });
+    tools.appendChild(txt);
+
+    var nap = el('button', { class: 'ghost-btn sm', id: 'ocrIngest', disabled: true }, 'Nạp kho tri thức');
+    nap.title = 'Nạp trực tiếp nội dung đã nhận dạng, không chạy lại OCR';
+    var napStatus = el('div', { class: 'card-sub', role: 'status', 'aria-live': 'polite' });
+    nap.addEventListener('click', async function () {
+      if (nap.disabled || ocr.busy || !ocr.meta) return;
+      var text = ocrMarkdown();
+      if (!text.trim()) { toast('Không có nội dung để nạp vào kho.', 'err'); return; }
+      // Chốt nội dung và nguồn trước khi gọi API: đổi file sau đó không làm lẫn kết quả.
+      var payload = {
+        text: text,
+        doc_title: start.file_name.slice(0, 300),
+        source: start.file_name,
+        metadata: { origin: 'ocr', ocr_profile: ocr.profile, ocr_mode: ocr.cheDo },
+      };
+      nap.disabled = true;
+      nap.textContent = 'Đang nạp vào kho…';
+      napStatus.textContent = 'Đang xử lý nội dung và lập chỉ mục tài liệu…';
+      try {
+        var result = await API.ingestText(payload);
+        nap.textContent = 'Đã nạp vào kho';
+        napStatus.innerHTML = '<span class="pill ok">Nạp thành công</span> ' +
+          esc(result.doc_title || payload.doc_title) + ' · ' + fmtNum(result.chunk_count) + ' đoạn' +
+          ' · Mã tài liệu: <code>' + esc(result.doc_id) + '</code>';
+        toast('Đã nạp kết quả OCR vào Kho tri thức', 'ok');
+      } catch (e) {
+        nap.disabled = false;
+        nap.textContent = 'Nạp kho tri thức';
+        napStatus.textContent = 'Nạp chưa thành công: ' + errText(e) + '. Bạn có thể bấm để thử lại.';
+        toast(errText(e), 'err');
+      }
+    });
+    tools.appendChild(nap);
 
     /* Lớp text có sẵn không đồng nghĩa với lớp text ĐÚNG: bản scan kèm OCR cũ
        vẫn thừa ký tự và thừa font nhúng nên qua hết ba tín hiệu phân loại, rồi
@@ -3199,6 +3368,7 @@
       var lai = el('button', { class: 'ghost-btn sm' }, 'Chữ sai? Đọc lại bằng mô hình');
       lai.title = 'Bỏ lớp text có sẵn, ép cả ' + start.so_trang + ' trang qua mô hình';
       lai.addEventListener('click', function () {
+        if (ocr.busy) return;
         $('#ocrCheDo').value = 'tat_ca';
         ocrDoc(ocr.fileId, 'tat_ca');
       });
@@ -3206,10 +3376,16 @@
     }
 
     card.appendChild(tools);
+    card.appendChild(napStatus);
     return card;
   }
 
   function ocrSetBusy(busy) {
+    ocr.busy = busy;
+    $('#ocrStop').hidden = !busy;
+    $('#ocrProfile').disabled = busy;
+    $('#ocrFile').disabled = busy;
+    $('#ocrDrop').classList.toggle('is-busy', busy);
     var btn = $('#ocrRun');
     btn.disabled = busy || !ocr.file;
     btn.textContent = busy ? 'Đang đọc…' : 'Đọc tài liệu';
@@ -3217,7 +3393,12 @@
   }
 
   wireDropzone('#ocrDrop', '#ocrFile', function (file) {
+    if (ocr.busy) return;
+    if (!/\.(pdf|jpe?g|png|bmp|tiff|webp)$/i.test(file.name)) { toast('Chỉ nhận PDF hoặc ảnh.', 'err'); return; }
+    if (!file.size || file.size > ocr.maxUploadMb * 1024 * 1024) { toast('File phải có nội dung và không quá ' + ocr.maxUploadMb + ' MB.', 'err'); return; }
     ocr.file = file;
+    ocr.fileId = '';
+    $('#ocrState').textContent = file.name + ' · ' + (file.size / 1024 / 1024).toFixed(2) + ' MB';
     markDropzone('#ocrDrop', file);
     $('#ocrRun').disabled = false;
     $('#ocrResult').innerHTML = '<div class="result-empty">Đã chọn <b>' + esc(file.name) +
@@ -3226,14 +3407,16 @@
 
   /** Tải file lên rồi đọc. Đọc lại đi thẳng vào `ocrDoc`, khỏi tải lên lần nữa. */
   async function ocrChay() {
+    if (ocr.busy) return;
     if (!ocr.file) { toast('Chọn file trước đã', 'err'); return; }
     var box = $('#ocrResult');
     ocrSetBusy(true);
+    $('#ocrStop').hidden = true;
     box.innerHTML = '';
     var loader = loaderNode('Đang tải “' + ocr.file.name + '” lên…');
     box.appendChild(loader);
     try {
-      var up = await API.agentUpload(ocr.file, 'upload');
+      var up = await API.agentUpload(ocr.file, 'upload', false);
       ocr.fileId = up.file_id;
       loader.stop();
     } catch (e) {
@@ -3258,6 +3441,8 @@
     ocr.meta = null;
     ocr.tho = false;
     ocr.cheDo = cheDo;
+    ocr.profile = $('#ocrProfile').value;
+    $('#ocrState').textContent = 'Đang nhận dạng tài liệu…';
     ocr.ctrl = new AbortController();
     ocrSetBusy(true);
 
@@ -3272,7 +3457,7 @@
     try {
       var loi = null;
 
-      await API.ocrStream({ file_id: fileId, che_do: cheDo }, {
+      await API.ocrStream({ file_id: fileId, che_do: cheDo, loai_tai_lieu: ocr.profile }, {
         start: function (p) {
           loader.stop();
           box.innerHTML = '';
@@ -3283,15 +3468,15 @@
           ocrSyncProgress();
         },
         trang: function (p) {
+          if (!ocr.trang[p.so_trang]) ocr.xong += 1;
           ocr.trang[p.so_trang] = p;
-          ocr.xong += 1;
           /* Đang xem Markdown thô thì phải dựng lại cả khối: nó là một chuỗi
              ghép từ mọi trang, không có ô riêng để điền vào như bản dựng. */
           if (ocr.tho) ocrPaint(); else ocrFillPage(p);
           ocrSyncProgress();
         },
         done: function (p) { ocr.meta = p; },
-        error: function (p) { loi = p && p.detail; },
+        error: function (p) { loi = p && (p.detail || (p.error && p.error.message)) || 'Không hoàn tất OCR.'; },
       }, ocr.ctrl.signal);
 
       loader.stop();
@@ -3304,18 +3489,23 @@
         $('#ocrProgressText').textContent = ocr.meta.so_trang + ' trang · ' + ocr.meta.giay + 's' +
           (ocr.meta.so_trang_loi ? ' · ' + ocr.meta.so_trang_loi + ' trang đọc hỏng' : '');
       }
+      $('#ocrState').textContent = 'Hoàn tất ' + ocr.meta.so_trang + ' trang · ' + ocr.meta.giay + ' giây' + (ocr.meta.so_trang_loi ? ' · ' + ocr.meta.so_trang_loi + ' trang lỗi' : '');
+      var ingestButton = $('#ocrIngest');
+      if (ingestButton) ingestButton.disabled = !ocrMarkdown().trim();
       toast('Đã đọc xong ' + ocr.meta.so_trang + ' trang', ocr.meta.so_trang_loi ? 'warn' : 'ok');
     } catch (e) {
       loader.stop();
       if (e && e.name === 'AbortError') {
         /* Đã dừng giữa chừng: giữ lại những trang đã đọc được thay vì xoá sạch -
            chúng vẫn là chữ thật của tài liệu, và đọc lại tốn đúng ngần ấy thời gian. */
+        $('#ocrState').textContent = 'Đã dừng · giữ lại ' + ocr.xong + ' trang đã nhận.';
         if (!ocr.tong) box.innerHTML = '<div class="result-empty">Đã dừng.</div>';
         else toast('Đã dừng — giữ lại ' + ocr.xong + ' trang đã đọc', '', 2600);
       } else {
-        box.innerHTML = '<div class="card" style="border-color:var(--err)">' +
+        $('#ocrState').textContent = 'Không hoàn tất nhận dạng. Bạn có thể thử lại.';
+        box.insertAdjacentHTML('beforeend', '<div class="card" style="border-color:var(--err)">' +
           '<div class="card-head"><h3>Không đọc được tài liệu</h3><span class="pill err">lỗi</span></div>' +
-          '<div class="muted sm">' + esc(errText(e)) + '</div></div>';
+          '<div class="muted sm">' + esc(errText(e)) + '</div></div>');
         toast(errText(e), 'err');
       }
     } finally {
@@ -3325,6 +3515,15 @@
   }
 
   $('#ocrRun').addEventListener('click', ocrChay);
+  $('#ocrDrop').addEventListener('keydown', function (e) {
+    if (!ocr.busy && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); $('#ocrFile').click(); }
+  });
+  $('#ocrStop').addEventListener('click', function () { if (ocr.ctrl) ocr.ctrl.abort(); });
+  $('#ocrProfile').addEventListener('change', function () {
+    $('#ocrProfileHint').textContent = this.value === 'chemistry'
+      ? 'Giữ chỉ số, điện tích và đọc bổ sung điều kiện phản ứng. Có thể mất nhiều thời gian hơn.'
+      : 'Giữ cấu trúc đoạn văn, tiêu đề và bảng biểu.';
+  });
 
   /* ─────────────────────────────── khởi động ─────────────────────────── */
   renderConvos();
